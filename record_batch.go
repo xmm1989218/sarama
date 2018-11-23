@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/eapache/go-xerial-snappy"
-	"github.com/pierrec/lz4"
+	"github.com/xmm1989218/lz4"
 )
 
 const recordBatchOverhead = 49
@@ -245,6 +245,16 @@ func (b *RecordBatch) encodeRecords(pe packetEncoder) error {
 	case CompressionLZ4:
 		var buf bytes.Buffer
 		writer := lz4.NewWriter(&buf)
+		if _, err := writer.Write(raw); err != nil {
+			return err
+		}
+		if err := writer.Close(); err != nil {
+			return err
+		}
+		b.compressedRecords = buf.Bytes()
+	case CompressionBadLZ4: // for kafka 0.8.2.0
+		var buf bytes.Buffer
+		writer := lz4.NewBadWriter(&buf)
 		if _, err := writer.Write(raw); err != nil {
 			return err
 		}

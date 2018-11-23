@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/eapache/go-xerial-snappy"
-	"github.com/pierrec/lz4"
+	"github.com/xmm1989218/lz4"
 )
 
 // CompressionCodec represents the various compression codecs recognized by Kafka in messages.
@@ -23,6 +23,7 @@ const (
 	CompressionSnappy CompressionCodec = 2
 	CompressionLZ4    CompressionCodec = 3
 	CompressionZSTD   CompressionCodec = 4
+	CompressionBadLZ4 CompressionCodec = 0x33 // for kafka 0.8.2.0 bad lz4 compression
 )
 
 func (cc CompressionCodec) String() string {
@@ -57,6 +58,7 @@ func (m *Message) encode(pe packetEncoder) error {
 
 	pe.putInt8(m.Version)
 
+	// here transfer CompressionBadLZ4 to CompressionLZ4
 	attributes := int8(m.Codec) & compressionCodecMask
 	pe.putInt8(attributes)
 
@@ -106,6 +108,17 @@ func (m *Message) encode(pe packetEncoder) error {
 		case CompressionLZ4:
 			var buf bytes.Buffer
 			writer := lz4.NewWriter(&buf)
+			if _, err = writer.Write(m.Value); err != nil {
+				return err
+			}
+			if err = writer.Close(); err != nil {
+				return err
+			}
+			m.compressedCache = buf.Bytes()
+			payload = m.compressedCache
+		case CompressionBadLZ4: // for kafka 0.8.2.0 bad lz4 compression
+			var buf bytes.Buffer
+			writer := lz4.NewBadWriter(&buf)
 			if _, err = writer.Write(m.Value); err != nil {
 				return err
 			}

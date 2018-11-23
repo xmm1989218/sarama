@@ -502,6 +502,7 @@ func (c *Config) Validate() error {
 		return ConfigurationError("Producer.Retry.Backoff must be >= 0")
 	}
 
+	// we allow CompressionBadLZ4 with version < 0.10.0.0
 	if c.Producer.Compression == CompressionLZ4 && !c.Version.IsAtLeast(V0_10_0_0) {
 		return ConfigurationError("lz4 compression requires Version >= V0_10_0_0")
 	}
